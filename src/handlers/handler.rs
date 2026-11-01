@@ -2,7 +2,8 @@ use std::{convert::Infallible};
 
 use http_body_util::combinators::UnsyncBoxBody;
 use http_body_util::{BodyExt, Full};
-use hyper::{Request, Response, StatusCode, Uri, body::{Bytes, Incoming}};
+use hyper::header::HeaderValue;
+use hyper::{Request, Response, StatusCode, Uri, body::{Bytes, Incoming}, header};
 use hyper_util::client::legacy::{Client, connect::HttpConnector};
 
 const HYDRA_URL: &str = "http://192.168.10.51:4000";
@@ -46,6 +47,14 @@ pub async fn forward(req: Request<Incoming>, client: Client<HttpConnector, Incom
     }
 
     parts.uri = new_uri;
+
+    let host = parts.uri.authority()
+        .map(|authority| authority.as_str())
+        .and_then(|authority| HeaderValue::from_str(authority).ok());
+
+    if let Some(host) = host {
+        parts.headers.insert(header::HOST, host);
+    }
 
     let req = Request::from_parts(parts, body);
     match client.request(req).await {
